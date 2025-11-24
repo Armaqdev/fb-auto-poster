@@ -47,8 +47,8 @@ export async function getRandomImageFromDrive() {
             key: apiKey
         }, { responseType: 'arraybuffer' });
 
-        // Generate public URL for the image
-        const publicUrl = `https://drive.google.com/uc?export=view&id=${randomFile.id}`;
+        // Generate public URL for the image - use thumbnail format for better Facebook compatibility
+        const publicUrl = `https://drive.google.com/thumbnail?id=${randomFile.id}&sz=w1000`;
 
         return {
             buffer: Buffer.from(response.data),

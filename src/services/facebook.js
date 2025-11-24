@@ -1,4 +1,5 @@
 import axios from 'axios';
+import FormData from 'form-data';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -13,18 +14,21 @@ export async function postToFacebook(message, imageData) {
     }
 
     try {
-        if (imageData && imageData.url) {
-            // Post to feed with image URL from Google Drive
-            const url = `https://graph.facebook.com/v19.0/${pageId}/feed`;
-            const response = await axios.post(url, {
-                message: message,
-                link: imageData.url,  // Use the public Drive URL
-                access_token: accessToken
+        if (imageData && imageData.buffer) {
+            // Upload photo directly with buffer
+            const url = `https://graph.facebook.com/v19.0/${pageId}/photos`;
+            const formData = new FormData();
+            formData.append('caption', message);
+            formData.append('source', imageData.buffer, { filename: 'image.jpg' });
+            formData.append('access_token', accessToken);
+            // Note: privacy parameter doesn't work with /photos endpoint, photos are always public on pages
+
+            const response = await axios.post(url, formData, {
+                headers: formData.getHeaders()
             });
 
             if (response.data && response.data.id) {
-                console.log(`Successfully posted to Facebook feed with image! Post ID: ${response.data.id}`);
-                console.log(`Post URL: https://www.facebook.com/${response.data.id}`);
+                console.log(`Successfully posted photo to Facebook! Photo ID: ${response.data.id}`);
                 return true;
             }
         } else {
@@ -32,6 +36,7 @@ export async function postToFacebook(message, imageData) {
             const url = `https://graph.facebook.com/v19.0/${pageId}/feed`;
             const response = await axios.post(url, {
                 message: message,
+                privacy: { value: 'EVERYONE' },
                 access_token: accessToken
             });
 
