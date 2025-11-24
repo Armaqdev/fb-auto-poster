@@ -15,20 +15,32 @@ export async function postToFacebook(message, imageData) {
 
     try {
         if (imageData && imageData.buffer) {
-            // Upload photo directly with buffer
-            const url = `https://graph.facebook.com/v19.0/${pageId}/photos`;
-            const formData = new FormData();
-            formData.append('caption', message);
-            formData.append('source', imageData.buffer, { filename: 'image.jpg' });
-            formData.append('access_token', accessToken);
-            // Note: privacy parameter doesn't work with /photos endpoint, photos are always public on pages
+            // Two-step process for public photo posts on timeline
 
-            const response = await axios.post(url, formData, {
-                headers: formData.getHeaders()
+            // Step 1: Upload photo without publishing
+            const uploadUrl = `https://graph.facebook.com/v19.0/${pageId}/photos?access_token=${accessToken}&published=false`;
+            const uploadFormData = new FormData();
+            uploadFormData.append('source', imageData.buffer, { filename: 'image.jpg' });
+
+            const uploadResponse = await axios.post(uploadUrl, uploadFormData, {
+                headers: uploadFormData.getHeaders()
             });
 
-            if (response.data && response.data.id) {
-                console.log(`Successfully posted photo to Facebook! Photo ID: ${response.data.id}`);
+            const photoId = uploadResponse.data.id;
+            console.log(`Photo uploaded with ID: ${photoId}`);
+
+            // Step 2: Create a PUBLIC feed post with the photo
+            const postUrl = `https://graph.facebook.com/v19.0/${pageId}/feed?access_token=${accessToken}`;
+            const postData = {
+                message: message,
+                attached_media: [{ media_fbid: photoId }],
+                privacy: { value: 'EVERYONE' }  // Make it public
+            };
+
+            const postResponse = await axios.post(postUrl, postData);
+
+            if (postResponse.data && postResponse.data.id) {
+                console.log(`Successfully posted to Facebook feed! Post ID: ${postResponse.data.id}`);
                 return true;
             }
         } else {
