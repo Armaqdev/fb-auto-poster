@@ -29,12 +29,11 @@ export async function postToFacebook(message, imageData) {
             const photoId = uploadResponse.data.id;
             console.log(`Photo uploaded with ID: ${photoId}`);
 
-            // Step 2: Create a PUBLIC feed post with the photo
+            // Step 2: Create a feed post with the photo
             const postUrl = `https://graph.facebook.com/v19.0/${pageId}/feed?access_token=${accessToken}`;
             const postData = {
                 message: message,
-                attached_media: [{ media_fbid: photoId }],
-                privacy: { value: 'EVERYONE' }  // Make it public
+                attached_media: [{ media_fbid: photoId }]
             };
 
             const postResponse = await axios.post(postUrl, postData);
@@ -48,7 +47,6 @@ export async function postToFacebook(message, imageData) {
             const url = `https://graph.facebook.com/v19.0/${pageId}/feed`;
             const response = await axios.post(url, {
                 message: message,
-                privacy: { value: 'EVERYONE' },
                 access_token: accessToken
             });
 
