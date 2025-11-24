@@ -19,21 +19,19 @@ export async function postToFacebook(message, imageBuffer) {
         let headers = {};
 
         if (imageBuffer) {
-            // Post Photo
-            url = `https://graph.facebook.com/v19.0/${pageId}/photos`;
+            // Post Photo - access_token in URL
+            url = `https://graph.facebook.com/v19.0/${pageId}/photos?access_token=${accessToken}`;
             const formData = new FormData();
             formData.append('message', message);
-            formData.append('access_token', accessToken);
-            formData.append('source', imageBuffer, { filename: 'image.jpg' }); // Filename is required by FormData
+            formData.append('source', imageBuffer, { filename: 'image.jpg' });
 
             data = formData;
             headers = formData.getHeaders();
         } else {
-            // Post Text Only
-            url = `https://graph.facebook.com/v19.0/${pageId}/feed`;
+            // Post Text Only - access_token in URL
+            url = `https://graph.facebook.com/v19.0/${pageId}/feed?access_token=${accessToken}`;
             data = {
-                message: message,
-                access_token: accessToken
+                message: message
             };
         }
 
