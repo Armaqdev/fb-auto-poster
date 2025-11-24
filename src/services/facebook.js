@@ -15,41 +15,29 @@ export async function postToFacebook(message, imageBuffer) {
 
     try {
         if (imageBuffer) {
-            // Two-step process: 1) Upload photo without posting, 2) Create feed post with photo
+            // Simple direct upload with caption - this should appear on timeline
+            const url = `https://graph.facebook.com/v19.0/${pageId}/photos`;
+            const formData = new FormData();
+            formData.append('caption', message);  // Use 'caption' instead of 'message' for photos
+            formData.append('source', imageBuffer, { filename: 'image.jpg' });
+            formData.append('access_token', accessToken);
 
-            // Step 1: Upload photo to get photo ID (published=false means it won't create a story yet)
-            const uploadUrl = `https://graph.facebook.com/v19.0/${pageId}/photos?access_token=${accessToken}&published=false`;
-            const uploadFormData = new FormData();
-            uploadFormData.append('source', imageBuffer, { filename: 'image.jpg' });
-
-            const uploadResponse = await axios.post(uploadUrl, uploadFormData, {
-                headers: uploadFormData.getHeaders()
+            const response = await axios.post(url, formData, {
+                headers: formData.getHeaders()
             });
 
-            const photoId = uploadResponse.data.id;
-            console.log(`Photo uploaded with ID: ${photoId}`);
-
-            // Step 2: Create a feed post that includes the photo
-            const postUrl = `https://graph.facebook.com/v19.0/${pageId}/feed?access_token=${accessToken}`;
-            const postData = {
-                message: message,
-                attached_media: [{ media_fbid: photoId }]
-            };
-
-            const postResponse = await axios.post(postUrl, postData);
-
-            if (postResponse.data && postResponse.data.id) {
-                console.log(`Successfully posted to Facebook feed! Post ID: ${postResponse.data.id}`);
+            if (response.data && response.data.id) {
+                console.log(`Successfully posted photo to Facebook! Photo ID: ${response.data.id}`);
+                console.log(`Post should be visible at: https://www.facebook.com/${response.data.id}`);
                 return true;
             }
         } else {
             // Post Text Only
-            const url = `https://graph.facebook.com/v19.0/${pageId}/feed?access_token=${accessToken}`;
-            const data = {
-                message: message
-            };
-
-            const response = await axios.post(url, data);
+            const url = `https://graph.facebook.com/v19.0/${pageId}/feed`;
+            const response = await axios.post(url, {
+                message: message,
+                access_token: accessToken
+            });
 
             if (response.data && response.data.id) {
                 console.log(`Successfully posted to Facebook! ID: ${response.data.id}`);
