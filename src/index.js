@@ -26,7 +26,7 @@ async function runPostCycle() {
             console.warn("No image found or error fetching. Proceeding with text only.");
         }
 
-        // 2. Generate Content
+        // 2. Generate Content (with Vision if image exists)
         console.log("Generating content with AI...");
         const content = await generatePostContent(image ? image.buffer : null, image ? image.mimeType : null);
 
@@ -39,7 +39,7 @@ async function runPostCycle() {
 
         // 3. Post to Facebook
         console.log("Posting to Facebook...");
-        const success = await postToFacebook(content, image ? image.buffer : null);
+        const success = await postToFacebook(content, image);  // Pass entire image object
 
         if (success) {
             console.log("Cycle completed successfully.");

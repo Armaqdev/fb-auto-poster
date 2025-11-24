@@ -47,10 +47,15 @@ export async function getRandomImageFromDrive() {
             key: apiKey
         }, { responseType: 'arraybuffer' });
 
+        // Generate public URL for the image
+        const publicUrl = `https://drive.google.com/uc?export=view&id=${randomFile.id}`;
+
         return {
             buffer: Buffer.from(response.data),
             mimeType: randomFile.mimeType,
-            name: randomFile.name
+            name: randomFile.name,
+            url: publicUrl,
+            fileId: randomFile.id
         };
 
     } catch (error) {
