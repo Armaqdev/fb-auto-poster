@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import dotenv from 'dotenv';
 import stream from 'stream';
+import { getRecentFileIds } from './history.js';
 
 dotenv.config();
 
@@ -33,8 +34,21 @@ export async function getRandomImageFromDrive() {
             return null;
         }
 
-        // 2. Pick a random file
-        const randomFile = files[Math.floor(Math.random() * files.length)];
+        // 2. Filter out recently published images
+        const recentlyPublished = getRecentFileIds();
+        const availableFiles = files.filter(file => !recentlyPublished.includes(file.id));
+
+        console.log(`Total images: ${files.length}, Recently published: ${recentlyPublished.length}, Available: ${availableFiles.length}`);
+
+        // If all images have been used recently, reset and use all files
+        const filesToChooseFrom = availableFiles.length > 0 ? availableFiles : files;
+
+        if (availableFiles.length === 0) {
+            console.warn("⚠️ All images have been used recently. Resetting selection pool.");
+        }
+
+        // 3. Pick a random file
+        const randomFile = filesToChooseFrom[Math.floor(Math.random() * filesToChooseFrom.length)];
         console.log(`Selected image: ${randomFile.name} (${randomFile.id})`);
 
         // 3. Download the file content as a buffer

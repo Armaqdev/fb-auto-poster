@@ -3,6 +3,7 @@ import cron from 'node-cron';
 import { generatePostContent } from './services/ai.js';
 import { postToFacebook } from './services/facebook.js';
 import { getRandomImageFromDrive } from './services/drive.js';
+import { addToHistory } from './services/history.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -42,6 +43,11 @@ async function runPostCycle() {
         const success = await postToFacebook(content, image);  // Pass entire image object
 
         if (success) {
+            // Save to history to avoid repeating this image soon
+            if (image && image.fileId) {
+                addToHistory(image.fileId, image.name);
+            }
+
             console.log("Cycle completed successfully.");
             return { success: true, message: "Posted successfully", content };
         } else {
@@ -56,7 +62,7 @@ async function runPostCycle() {
 }
 
 // --- SCHEDULER ---
-// Schedule task to run every hour
+// Schedule task to run every 2 hours
 cron.schedule('0 */2 * * *', async () => {
     console.log("⏰ Cron job triggered.");
     await runPostCycle();
@@ -81,4 +87,3 @@ app.get('/trigger-post', async (req, res) => {
 app.listen(port, () => {
     console.log(`Server listening on port ${port}`);
 });
-
