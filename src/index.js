@@ -57,7 +57,7 @@ async function runPostCycle() {
 
 // --- SCHEDULER ---
 // Schedule task to run every hour
-cron.schedule('0 * * * *', async () => {
+cron.schedule('0 */2 * * *', async () => {
     console.log("⏰ Cron job triggered.");
     await runPostCycle();
 });
@@ -81,3 +81,4 @@ app.get('/trigger-post', async (req, res) => {
 app.listen(port, () => {
     console.log(`Server listening on port ${port}`);
 });
+
