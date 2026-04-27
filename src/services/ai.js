@@ -73,7 +73,8 @@ export async function generatePostContent(imageBuffer = null, mimeType = null) {
     return text.trim();
 
   } catch (error) {
-    console.error("Error generating AI content:", error);
+    console.error("Error generating AI content:", error.message);
+    console.error("Error details:", JSON.stringify(error.error, null, 2));
     return null;
   }
 }
