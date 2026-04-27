@@ -6,11 +6,45 @@ dotenv.config();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+const MODEL_FALLBACKS = [
+  "gemini-1.5-flash",
+  "gemini-1.5-pro",
+  "gemini-2.5-flash",
+];
+
+async function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function generateWithRetry(parts, retries = 3, delayMs = 5000) {
+  for (const modelName of MODEL_FALLBACKS) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        console.log(`🤖 Trying model: ${modelName} (attempt ${attempt}/${retries})`);
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(parts);
+        const response = await result.response;
+        console.log(`✅ Model ${modelName} succeeded.`);
+        return response.text();
+      } catch (err) {
+        const is503 = err.status === 503 || (err.message && err.message.includes('503'));
+        if (is503 && attempt < retries) {
+          console.warn(`⚠️ ${modelName} returned 503. Retrying in ${delayMs / 1000}s...`);
+          await sleep(delayMs);
+        } else if (is503) {
+          console.warn(`❌ ${modelName} failed after ${retries} attempts. Trying next model...`);
+          break;
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+  throw new Error("All models failed to generate content.");
+}
+
 export async function generatePostContent(imageBuffer = null, mimeType = null) {
   try {
-    // Use gemini-2.5-flash which is available in your account
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
     let imagePart = null;
     if (imageBuffer) {
       imagePart = {
@@ -21,11 +55,9 @@ export async function generatePostContent(imageBuffer = null, mimeType = null) {
       };
     }
 
-    // Get a random content template for variety
     const template = getRandomTemplate();
     console.log(`📝 Using template type: ${template.type}`);
 
-    // Select random equipment tips
     const randomTips = Object.values(equipmentTips).flat();
     const selectedTip = randomTips[Math.floor(Math.random() * randomTips.length)];
 
@@ -63,9 +95,7 @@ export async function generatePostContent(imageBuffer = null, mimeType = null) {
     `;
 
     const parts = imagePart ? [basePrompt, imagePart] : [basePrompt];
-    const result = await model.generateContent(parts);
-    const response = await result.response;
-    const text = response.text();
+    const text = await generateWithRetry(parts);
 
     return text.trim();
   } catch (error) {
