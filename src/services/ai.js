@@ -1,70 +1,23 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import Anthropic from "@anthropic-ai/sdk";
 import dotenv from 'dotenv';
 import { getRandomTemplate, equipmentTips } from './content-templates.js';
 
 dotenv.config();
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-const MODEL_FALLBACKS = [
-  "gemini-1.5-flash",
-  "gemini-1.5-pro",
-  "gemini-2.5-flash",
-];
-
-async function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function generateWithRetry(parts, retries = 3, delayMs = 5000) {
-  for (const modelName of MODEL_FALLBACKS) {
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      try {
-        console.log(`🤖 Trying model: ${modelName} (attempt ${attempt}/${retries})`);
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const result = await model.generateContent(parts);
-        const response = await result.response;
-        console.log(`✅ Model ${modelName} succeeded.`);
-        return response.text();
-      } catch (err) {
-        const is503 = err.status === 503 || (err.message && err.message.includes('503'));
-        if (is503 && attempt < retries) {
-          console.warn(`⚠️ ${modelName} returned 503. Retrying in ${delayMs / 1000}s...`);
-          await sleep(delayMs);
-        } else if (is503) {
-          console.warn(`❌ ${modelName} failed after ${retries} attempts. Trying next model...`);
-          break;
-        } else {
-          throw err;
-        }
-      }
-    }
-  }
-  throw new Error("All models failed to generate content.");
-}
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function generatePostContent(imageBuffer = null, mimeType = null) {
   try {
-    let imagePart = null;
-    if (imageBuffer) {
-      imagePart = {
-        inlineData: {
-          data: imageBuffer.toString("base64"),
-          mimeType: mimeType || "image/jpeg",
-        },
-      };
-    }
-
     const template = getRandomTemplate();
     console.log(`📝 Using template type: ${template.type}`);
 
     const randomTips = Object.values(equipmentTips).flat();
     const selectedTip = randomTips[Math.floor(Math.random() * randomTips.length)];
 
-    const basePrompt = `
+    const textPrompt = `
       Actúa como el Community Manager experto de "ARMAQ", una empresa líder en VENTA de maquinaria ligera y andamios en Playa del Carmen.
       
-      ${imagePart ? "ANALIZA LA IMAGEN PROPORCIONADA. Identifica el equipo o producto mostrado." : ""}
+      ${imageBuffer ? "ANALIZA LA IMAGEN PROPORCIONADA. Identifica el equipo o producto mostrado." : ""}
       
       TIPO DE PUBLICACIÓN: ${template.type}
       
@@ -94,10 +47,31 @@ export async function generatePostContent(imageBuffer = null, mimeType = null) {
       - Sé creativo pero mantén la profesionalidad
     `;
 
-    const parts = imagePart ? [basePrompt, imagePart] : [basePrompt];
-    const text = await generateWithRetry(parts);
+    const content = [];
 
+    if (imageBuffer) {
+      content.push({
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: mimeType || "image/jpeg",
+          data: imageBuffer.toString("base64"),
+        },
+      });
+    }
+
+    content.push({ type: "text", text: textPrompt });
+
+    const response = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 1024,
+      messages: [{ role: "user", content }],
+    });
+
+    const text = response.content[0].text;
+    console.log(`✅ Claude generated content successfully.`);
     return text.trim();
+
   } catch (error) {
     console.error("Error generating AI content:", error);
     return null;
